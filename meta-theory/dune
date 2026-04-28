@@ -1,0 +1,6 @@
+(include_subdirs qualified)
+
+(rocq.theory
+ (name MetaTheory)
+ (package verified-metaprogramming)
+ (theories Stdlib Equations Metaprog Ltac2))

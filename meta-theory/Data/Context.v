@@ -1,4 +1,4 @@
-(** This module defines the verification version of local contexts,
+(** This module defines the local contexts,
     which store the types of local variables in a given scope. *)
 
 From MetaTheory Require Import Prelude.

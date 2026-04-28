@@ -1,6 +1,4 @@
-(** This module defines the verification view of evar maps. This representation is inefficient,
-    but we do not extract it to OCaml: meta-programs instead use Rocq's built-in evar map.
-
+(** This module defines evar maps.
     An advantage of the definition of evar maps as done here is _extensionality_:
     to prove that two evars maps are equal, it suffices to prove pointwise equality.
 

@@ -1,4 +1,4 @@
-(** This module defines the _verification_ versions of:
+(** This module defines the core data-structures used in the formalization:
     - Terms.
     - Thinnings and substitutions.
     - Smart weakening on terms. *)
@@ -36,14 +36,8 @@ Qed.
 (** * Terms *)
 (***********************************************************************)
 
-(** Verification terms [term s] model concrete terms [term s], modulo a
-    couple simplifications to ease reasoning:
-    - verification terms don't include names of binders.
-    - verification terms use binary applications instead of n-ary applications.
-
-    In [term s] the scope is a _non-uniform_ parameter: this gives slightly
-    better behaviour in dependent pattern matching.
-*)
+(** In [term s] the scope is a _non-uniform_ parameter: this gives slightly
+    better behaviour in dependent pattern matching. *)
 Inductive term (s : scope) : Type :=
 (** [Type_] is the type of types (i.e. [Type] in Rocq).
     For the moment we don't support universes or other sorts such as [Prop]. *)
@@ -132,12 +126,13 @@ Definition is_evar {s} (t : term s) : Prop :=
 (** * Thinnings *)
 (***********************************************************************)
 
-(** [thinning s s'] is the type of verification thinnings from scope [s] to scope [s'].
+(** [thinning s s'] is the type of thinnings from scope [s] to scope [s'].
     Thinnings are order-preserving renamings and are thus injective: the operation
     [thicken] is the partial inverse of [thin].
 
-    We could think of simply encoding a thinning as a pair of a renaming and a
-    proof of monotonicity. We do *not* choose this encoding because it makes it
+    We could think of simply encoding a thinning as a pair of a renaming (i.e. a
+    function [index s -> index s']) and a proof of monotonicity.
+    We do *not* choose this encoding because it makes it
     impossible to define the function [thicken] (we would only be able to
     write [thicken] as a relation).
 *)

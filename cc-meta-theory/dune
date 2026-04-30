@@ -3,4 +3,4 @@
 (rocq.theory
  (name MetaTheory)
  (package verified-metaprogramming)
- (theories Stdlib Equations Metaprog Ltac2))
+ (theories Stdlib Equations Ltac2 Common))

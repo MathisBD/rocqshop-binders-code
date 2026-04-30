@@ -1,6 +1,10 @@
 (** This file defines scopes and (well-scoped) de Bruijn indices. *)
 
-From MetaTheory Require Import Prelude.
+From Equations Require Export Equations.
+
+(** We allow [Equations] to use UIP instances, e.g. when deriving
+    instances of [NoConfusion] or [NoConfusionHom]. *)
+#[export] Set Equations With UIP.
 
 (***********************************************************************)
 (** * Scopes *)
@@ -25,11 +29,7 @@ Proof. destruct x ; destruct y ; reflexivity. Qed.
 Proof. intros [] []. now left. Defined.
 
 (** [scope] is isomorphic to the set of natural numbers [nat], but additionally
-    contains phantom tags.
-
-    For the moment [scope] is extracted to OCaml's [int]: in the future extraction
-    should erase [scope] entirely. We can't put scopes in [Prop] because
-    they need to be proof-relevant, so we need to wait for [Ghost] to be implemented. *)
+    contains phantom tags. *)
 Inductive scope : Set :=
 | SNil
 | SCons (s : scope) (x : tag).
@@ -137,4 +137,14 @@ Fixpoint idx_of (x : tag) {s} {wit : scope_mem x s} : index s :=
   match wit with
   | scope_mem_here _ => I0
   | scope_mem_skip _ wit => IS (@idx_of x _ wit)
+  end.
+
+(** [tag_of i] creates a tag corresponding to a de Bruijn index [x],
+    along with a witness that [x] is included in scope [s]. *)
+Fixpoint tag_of {s} (i : index s) : { x & scope_mem x s } :=
+  match i with
+  | @I0 s x => existT _ x (scope_mem_here x)
+  | @IS s x i =>
+    let '(existT _ y H) := tag_of i in
+    existT _ y (scope_mem_skip x H)
   end.

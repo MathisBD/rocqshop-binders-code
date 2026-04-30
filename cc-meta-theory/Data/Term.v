@@ -4,7 +4,7 @@
     - Smart weakening on terms. *)
 
 From MetaTheory Require Import Prelude.
-From Common Require Export Index Thinnings.
+From Common Require Export Index.
 
 (***********************************************************************)
 (** * Evar identifiers *)

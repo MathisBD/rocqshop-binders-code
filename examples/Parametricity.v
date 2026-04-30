@@ -2,7 +2,7 @@
     dependently typed calculus. *)
 
 From Equations Require Import Equations.
-From Common Require Import Index Thinnings.
+From Common Require Import Index.
 
 (** Right-associative function application. *)
 Notation "f '$' x" := (f x)

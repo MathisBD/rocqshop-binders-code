@@ -3,20 +3,13 @@
 From Equations Require Import Equations.
 From Common Require Import Index.
 
-(** Right-associative function application. *)
-Notation "f '$' x" := (f x)
-  (at level 67, right associativity, only parsing).
-
-(** Notation for dependent pairs. *)
-Notation "⟨ x , y ⟩" := (existT _ x y) (format "⟨ x ,  y ⟩").
-
 (***********************************************************************)
 (** * Term syntax *)
 (***********************************************************************)
 
 (** The lambda calculus with let-bindings. *)
 Inductive term (s : scope) : Type :=
-(** [TVar i] is a local variable, encoded using a de Bruijn index [i]. *)
+(** [Var i] is a local variable, encoded using a de Bruijn index [i]. *)
 | Var (i : index s)
 (** [Lam x body] represents the lambda abstraction [fun x => body]. *)
 | Lam (x : tag) (body : term (s ▷ x))
@@ -49,12 +42,12 @@ thin δ (LetIn x t u) := LetIn x (thin δ t) (thin (ThinKeep x δ) u).
 Definition wk {s s'} `{scope_incl s s'} (t : term s) : term s' :=
   thin wk_idx t.
 
-(** [lam_fresh body] builds the lambda abstraction [fun x => body] in HOAS style. *)
-Definition lam_fresh {s} (body : forall x, term (s ▷ x)) : term s :=
+(** [mk_lam body] builds the lambda abstraction [fun x => body] in HOAS style. *)
+Definition mk_lam {s} (body : forall x, term (s ▷ x)) : term s :=
   Lam TAG (body TAG).
 
-(** [letin_fresh t u] builds the let-binding [let x := t in u] in HOAS style. *)
-Definition letin_fresh {s} (t : term s) (u : forall x, term (s ▷ x)) : term s :=
+(** [mk_letin t u] builds the let-binding [let x := t in u] in HOAS style. *)
+Definition mk_letin {s} (t : term s) (u : forall x, term (s ▷ x)) : term s :=
   LetIn TAG t (u TAG).
 
 (***********************************************************************)
@@ -67,21 +60,19 @@ Definition letin_fresh {s} (t : term s) (u : forall x, term (s ▷ x)) : term s 
     We choose to disable guard checking for simplicity. *)
 Unset Guard Checking.
 
-Fixpoint cps {s} (t : term s) {struct t} : term s -> term s :=
+Fixpoint cps {s} (t : term s) (k : term s) {struct t} : term s :=
   match t with
-  | Var i => fun k =>
+  | Var i =>
     App k (Var i)
-  | Lam x t => fun k =>
-      App k (Lam x (
-        lam_fresh (fun k' => cps (wk t) #k'
-      )))
-  | App t u => fun k =>
-      cps t (lam_fresh (fun x =>
-      cps (wk u) (lam_fresh (fun y =>
+  | Lam x t =>
+      App k (Lam x (mk_lam (fun k' => cps (wk t) #k')))
+  | App t u =>
+      cps t (mk_lam (fun x =>
+      cps (wk u) (mk_lam (fun y =>
         App (App #x #y) (wk k)
       ))))
-  | LetIn x t u => fun k =>
-      cps t (lam_fresh (fun v =>
+  | LetIn x t u =>
+      cps t (mk_lam (fun v =>
         LetIn x #v (cps (wk u) (wk k)
       )))
   end.

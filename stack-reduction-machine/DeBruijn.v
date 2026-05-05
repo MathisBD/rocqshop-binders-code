@@ -12,33 +12,50 @@ Inductive term :=
 | app : term -> term -> term
 | lam : term -> term.
 
-(**************************************************************************)
-(** * Substitution *)
-(**************************************************************************)
-
-(** [lift depth ofs t] adds [ofs] to all de Bruijn indices in [t]
-    which are greater or equal to [depth]. *)
-Fixpoint lift (depth : nat) (ofs : nat) (t : term) : term :=
-  match t with
-  | var i => if i <? depth then var i else var (i + ofs)
-  | app t1 t2 => app (lift depth ofs t1) (lift depth ofs t2)
-  | lam t => lam (lift (depth + 1) ofs t)
+(** N-ary application constructor. *)
+Fixpoint apps (f : term) (xs : list term) : term :=
+  match xs with
+  | [] => f
+  | x :: xs => apps (app f x) xs
   end.
 
-Definition lift0 := lift 0.
+(**************************************************************************)
+(** * Parallel substitution *)
+(**************************************************************************)
 
-(** [subst n u t] substitutes de Bruijn index [n] with [u] in [t]. *)
-Fixpoint subst (n : nat) (u : term) (t : term) : term :=
-  match t with
-  | var i =>
-    if i <? n then var i
-    else if i =? n then lift 0 n u
-    else var (i - 1)
-  | app t1 t2 => app (subst n u t1) (subst n u t2)
-  | lam t => lam (subst (n + 1) u t)
+(** [rup ρ] lifts the renaming [ρ] through a binder. *)
+Definition rup (ρ : nat -> nat) (i : nat) : nat :=
+  match i with
+  | 0 => 0
+  | S i => S (ρ i)
   end.
 
-Definition subst0 := subst 0.
+(** [rename ρ t] applies the parallel renaming [ρ] to the term [t]. *)
+Fixpoint rename (ρ : nat -> nat) (t : term) : term :=
+  match t with
+  | var i => var (ρ i)
+  | app t1 t2 => app (rename ρ t1) (rename ρ t2)
+  | lam t => lam (rename (rup ρ) t)
+  end.
+
+(** [sup σ] lifts the substitution [σ] through a binder. *)
+Definition sup (σ : nat -> term) (i : nat) : term :=
+  match i with
+  | 0 => var 0
+  | S i => rename S (σ i)
+  end.
+
+(** [substitute σ t] applies the parallel substitution [σ] to the term [t]. *)
+Fixpoint substitute (σ : nat -> term) (t : term) : term :=
+  match t with
+  | var i => σ i
+  | app t1 t2 => app (substitute σ t1) (substitute σ t2)
+  | lam t => lam (substitute (sup σ) t)
+  end.
+
+(** [subst1 t u] substitutes de Bruijn index [0] with [u] in [t]. *)
+Definition subst1 (t u : term) : term :=
+  substitute (fun i => match i with 0 => u | S i => var i end) t.
 
 (**************************************************************************)
 (** * Reduction relation *)
@@ -54,7 +71,7 @@ Inductive red : term -> term -> Prop :=
     u ~~> v ->
     t ~~> v
 | red_beta t u :
-    app (lam t) u ~~> subst0 u t
+    app (lam t) u ~~> subst1 t u
 | red_app t t' u u' :
     t ~~> t' ->
     u ~~> u' ->
@@ -68,115 +85,20 @@ where "t '~~>' u" := (red t u).
 Proof.
 constructor.
 - intros t. apply red_refl.
-- intros t1 t2 t3 H1 H2. induction H2.
-  + assumption.
-  + apply red_step with (t2 := t2) ; auto.
+- intros t1 t2 t3. apply red_trans.
 Qed.
 
-#[local] Instance red_app : Proper (red ==> red ==> red) app.
+#[local] Instance red_app_Proper : Proper (red ==> red ==> red) app.
 Proof.
-intros t t' Ht u u' Hu. transitivity (app t u').
-- induction Hu.
-  + reflexivity.
-  + transitivity (app t t2) ; [assumption|]. apply red_red1. now apply red1_app_r.
-- induction Ht.
-  + reflexivity.
-  + transitivity (app t2 u') ; [assumption|]. apply red_red1. now apply red1_app_l.
+intros t t' Ht u u' Hu. now apply red_app.
 Qed.
 
-#[local] Instance red_lam : Proper (red ==> red) lam.
+#[local] Instance red_lam_Proper : Proper (red ==> red) lam.
 Proof.
-intros t t' Ht. induction Ht.
-- reflexivity.
-- transitivity (lam t2) ; [assumption|]. apply red_red1. now apply red1_lam.
+intros t t' Ht. now apply red_lam.
 Qed.
 
-Lemma red_beta t u : app (lam t) u ~~> subst0 u t.
-Proof. apply red_red1. constructor. Qed.
-
-(**************************************************************************)
-(** *** Monadic programs. *)
-(**************************************************************************)
-
-(** A simple error monad. *)
-Inductive M (A : Type) : Type :=
-| Success (x : A) : M A
-| OutOfFuel : M A.
-Arguments Success {A} x.
-Arguments OutOfFuel {A}.
-
-Definition ret {A} (x : A) : M A :=
-  Success x.
-
-Definition bind {A B} (mx : M A) (f : A -> M B) : M B :=
-  match mx with
-  | Success x => f x
-  | OutOfFuel => OutOfFuel
-  end.
-
-(** [let*] monadic notation. *)
-Notation "'let*' x ':=' t 'in' u" := (bind t (fun x => u))
-  (at level 100, right associativity, t at next level, x pattern).
-
-(** Primitive to fail. *)
-Definition fail {A} : M A := OutOfFuel.
-
-(** Weakest-precondition. *)
-Definition wp {A} (m : M A) (Q : A -> Prop) :=
-  match m with
-  | OutOfFuel => True
-  | Success a => Q a
-  end.
-
-Lemma wp_fail {A} Q : wp (@fail A) Q.
-Proof. cbn. constructor. Qed.
-
-Lemma wp_ret {A} (a : A) Q : Q a -> wp (ret a) Q.
-Proof. intros H. cbn. assumption. Qed.
-
-Lemma wp_bind {A B} (m : M A) (f : A -> M B) Q :
-  wp m (fun a => wp (f a) Q) -> wp (let* x := m in f x) Q.
-Proof.
-intros H. destruct m ; cbn in * ; assumption.
-Qed.
-
-Lemma wp_consequence {A} (m : M A) Q Q' :
-  (forall a, Q a -> Q' a) -> wp m Q -> wp m Q'.
-Proof.
-intros H1 H2. destruct m ; cbn in *.
-- apply H1. assumption.
-- constructor.
-Qed.
-
-Ltac wp_step :=
-  match goal with
-  | [ |- wp (ret _) _ ] => apply wp_ret
-  | [ |- wp (bind _ _) _ ] => apply wp_bind
-  | [ |- wp fail _ ] => apply wp_fail
-  end.
-
-Ltac wp_steps :=
-  repeat wp_step.
-
-(** Hoare triples. *)
-Definition hoare_triple {A} (P : Prop) (m : M A) (Q : A -> Prop) :=
-  forall Q', P -> (forall a, Q a -> Q' a) -> wp m Q'.
-
-(** Hoare triple. *)
-Notation "'{{' P '}}' m '{{' v '.' Q '}}'" := (hoare_triple P m (fun v => Q))
-  (at level 100, v binder).
-
-(**************************************************************************)
-(** *** Stack reduction machine. *)
-(**************************************************************************)
-
-Fixpoint apps (f : term) (xs : list term) : term :=
-  match xs with
-  | [] => f
-  | x :: xs => apps (app f x) xs
-  end.
-
-(** This instance could be more general, but I only need this at the moment. *)
+(** This instance could be more general, but is sufficient here. *)
 #[local] Instance red_apps : Proper (red ==> eq ==> red) apps.
 Proof.
 intros f f' Hf xs ? <-. induction xs in f, f', Hf |- * ; cbn.
@@ -184,41 +106,45 @@ intros f f' Hf xs ? <-. induction xs in f, f', Hf |- * ; cbn.
 - apply IHxs. now rewrite Hf.
 Qed.
 
+(**************************************************************************)
+(** *** Stack reduction machine. *)
+(**************************************************************************)
+
 Definition zip (t : term * list term) := apps (fst t) (snd t).
 
-(** Strong call-by-value stack reduction machine.
-    The implementation is quite naive. *)
-Fixpoint reduce_stack (fuel : nat) (t : term) (stack : list term) : M (term * list term) :=
-  match fuel with 0 => fail | S fuel =>
+(** Strong call-by-name stack reduction machine. *)
+Fixpoint reduce_stack (fuel : nat) (t : term) (stack : list term) : term * list term :=
+  match fuel with 0 => (t, stack) | S fuel =>
   match t with
-  | var i => ret (var i, stack)
+  | var i => (var i, stack)
   | app f x => reduce_stack fuel f (x :: stack)
   | lam t =>
     match stack with
     | [] =>
-      let* t := reduce_stack fuel t [] in
-      ret (lam (zip t), [])
-    | x :: stack =>
-      let* x := reduce_stack fuel x [] in
-      reduce_stack fuel (subst0 (zip x) t) stack
+      let t := reduce_stack fuel t [] in
+      (lam (zip t), [])
+    | arg :: stack =>
+      reduce_stack fuel (subst1 t arg) stack
     end
   end
   end.
 
 Lemma reduce_stack_correct fuel t stack :
-  {{ True }} reduce_stack fuel t stack {{ t'. apps t stack ~~> zip t' }}.
+  apps t stack ~~> zip (reduce_stack fuel t stack).
 Proof.
 induction fuel in t, stack |- * ; cbn [reduce_stack].
-- intros Φ _ HΦ. wp_step.
-- intros Φ _ HΦ. destruct t.
-  + wp_step. apply HΦ. cbn. reflexivity.
-  + apply IHfuel ; [constructor|]. intros [t' stack'] H. apply HΦ. exact H.
-  + destruct stack as [| x stack].
-    * wp_step. apply IHfuel ; [constructor|].
-      intros [t' stack'] H'. cbn in H'. wp_step. apply HΦ. cbn.
-      rewrite H'. reflexivity.
-    * wp_step. apply IHfuel ; [constructor|].
-      intros [t' stack'] H. cbn in H. apply IHfuel ; [constructor|].
-      intros [t'' stack''] H1. apply HΦ. cbn in *.
-      rewrite H. rewrite red_beta. rewrite H1. reflexivity.
+- cbn. reflexivity.
+- destruct t.
+  (* var case. *)
+  + cbn. reflexivity.
+  (* app case *)
+  + specialize (IHfuel t1 (t2 :: stack)). rewrite <-IHfuel.
+    cbn. reflexivity.
+  (* lam case *)
+  + destruct stack as [| arg stack].
+    (* Empty argument stack. *)
+    * specialize (IHfuel t []). cbn in *. now f_equiv.
+    (* Non-empty argument stack. *)
+    * specialize (IHfuel (subst1 t arg) stack).
+      cbn in *. rewrite red_beta. exact IHfuel.
 Qed.

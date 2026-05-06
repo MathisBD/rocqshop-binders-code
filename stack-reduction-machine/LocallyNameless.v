@@ -204,6 +204,66 @@ generalize 0. induction t ; intros k ; cbn.
 Qed.
 
 (**************************************************************************)
+(** * Locally closed terms *)
+(**************************************************************************)
+
+(** We formalize the notion of locally closed terms in order to state
+    and prove the lemma [open_close_same]. *)
+
+(** [lc t n] means that [t] is locally closed under [n] binders,
+    i.e. that the de Bruijn indices of [t] are smaller than [n]. *)
+Inductive lc : term -> nat -> Prop :=
+| lc_fvar x n :
+    lc (fvar x) n
+| lc_bvar i n :
+    i < n ->
+    lc (bvar i) n
+| lc_app t1 t2 n :
+    lc t1 n ->
+    lc t2 n ->
+    lc (app t1 t2) n
+| lc_lam t n :
+    lc t (n + 1) ->
+    lc (lam t) n.
+
+Lemma lc_open_var t n x :
+  lc t (n + 1) <-> lc (open_ n (fvar x) t) n.
+Proof.
+revert n. induction t ; intros n ; split ; intros H ; cbn in *.
+- constructor.
+- constructor.
+- destruct (Nat.eqb_spec i n) ; subst.
+  + constructor.
+  + inversion H ; subst. constructor. lia.
+- destruct (Nat.eqb_spec i n) ; subst.
+  + constructor. lia.
+  + constructor. inversion H ; subst. lia.
+- inversion H ; subst. constructor.
+  + now apply IHt1.
+  + now apply IHt2.
+- inversion H ; subst. constructor.
+  + now apply IHt1.
+  + now apply IHt2.
+- inversion H ; subst. clear H. constructor. now apply IHt.
+- inversion H ; subst. clear H. constructor. now apply IHt.
+Qed.
+
+Lemma open_close_same x t :
+  lc t 0 ->
+  (t \^ x) ^ x = t.
+Proof.
+generalize 0. induction t ; intros n H ; cbn in *.
+- destruct (Nat.eqb_spec x x0) ; subst.
+  + cbn. rewrite Nat.eqb_refl. reflexivity.
+  + cbn. reflexivity.
+- inversion H ; subst. destruct (Nat.eqb_spec i n) ; subst.
+  + lia.
+  + reflexivity.
+- inversion H ; subst. rewrite IHt1, IHt2 by assumption. reflexivity.
+- inversion H ; subst. rewrite IHt by assumption. reflexivity.
+Qed.
+
+(**************************************************************************)
 (** * Reduction relation *)
 (**************************************************************************)
 
@@ -391,26 +451,18 @@ intros H. induction H ; cbn.
   rewrite <-fv_open in H0. apply H0 in Hy. cbn in Hy. set_solver.
 Qed.
 
-Lemma open_close_same ctx x t :
-  well_scoped ctx t ->
-  (t \^ x) ^ x = t.
+(** A well-scoped term is locally closed. *)
+Lemma well_scoped_lc ctx t :
+  well_scoped ctx t -> lc t 0.
 Proof.
-(*generalize 0. remember (term_size t) as s. revert ctx t Heqs.
-induction s using lt_wf_ind ; intros ctx t -> n Ht.
-destruct t ; cbn.
-- destruct (Nat.eqb_spec x x0) ; cbn.
-  + rewrite Nat.eqb_refl. now subst.
-  + reflexivity.
-- inversion Ht.
-- inversion Ht ; subst. f_equal.
-  + eapply H ; eauto. cbn. lia.
-  + eapply H ; eauto. cbn. lia.
-- f_equal. eapply H. ; eauto.
-  + cbn. lia.
-  + inversion Ht ; subst. destruct (exist_fresh (fv t ∪ domain ctx)) as [y Hy].
-    apply (H2 y).
-    specialize (H2 y).*)
-Admitted.
+intros H. induction H ; cbn.
+- constructor.
+- now constructor.
+- constructor. cbn.
+  destruct (exist_fresh (fv t ∪ domain ctx)) as [x Hx].
+  specialize (H0 x). forward H0 by set_solver. forward H0 by set_solver.
+  rewrite <-lc_open_var in H0. assumption.
+Qed.
 
 Lemma well_scoped_open ctx t u :
   well_scoped ctx (lam t) ->
@@ -508,7 +560,8 @@ induction fuel in t, stack, Γ |- * ; cbn [reduce_stack] ; intros Ht HΓ.
       apply red_lam_intro with y.
       --assumption.
       --apply not_elem_of_fv_close.
-      --rewrite open_close_same with (ctx := y :: ctx) ; [exact IHfuel |].
+      --rewrite open_close_same ; [exact IHfuel |].
+        apply well_scoped_lc with (ctx := y :: ctx).
         apply well_scoped_red with (t ^ y) ; [assumption |].
         apply H ; auto. subst. apply fresh_name_spec.
     (* The stack is non-empty. *)

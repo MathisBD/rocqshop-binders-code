@@ -1,14 +1,34 @@
-From Stdlib Require Import Morphisms.
-From stdpp Require Import gmap.
+(** This file proves the correctness of the stack reduction machine using
+    locally nameless syntax, without cofinite quantification.
 
-(** [forward H] performs forward reasoning: given a hypothesis [H : A -> B],
-    it firsts asks to prove [A] and then [A |- B]. *)
-Ltac forward H :=
-  match type of H with
-  | ?A -> ?B =>
-    let H' := fresh in
-    assert (H' : A); [| specialize (H H'); clear H' ]
-  end.
+    Instead, we use two versions for rules which involve quantification
+    over free names:
+    - A universally quantified version (e.g. [red_lam]) to get useful
+      induction principles.
+    - An existentially quantified version (e.g. [red_lam_intro]) to get
+      useful introduction rules.
+
+    We prove the equivalence of both versions for every judgement we
+    use ([well_scoped] and [red]). Proving the equivalence is tedious
+    but systematic:
+    1. We introduce a swapping permutation which swaps
+       two names [a] and [b], which is defined for every data-structure
+       which contains names: [swap_name a b], [swap_term a b], [swap_context a b].
+    2. We prove basic properties about every swapping function: involutivity,
+       injectivity, swapping names which aren't in the support is the identity, etc.
+    3. We prove 'equivariance' lemmas: basic operations commute with swapping
+       (lemmas [open_equivariant], [close_equivariant], etc) and judgements
+       commute with swapping (lemmas [red_equivariant], [well_scoped_equivariant], etc).
+    4. We use these equivariance lemmas to prove that the existentially-quantified
+       rules follow from the universally-quantified ones.
+
+  Overall the proof of correctness of the reduction machine is extremely tedious,
+  especially given that the same proof using de Bruijn indices is entirely trivial.
+*)
+
+From Stdlib Require Import Morphisms.
+From Equations Require Import Equations.
+From stdpp Require Import gmap.
 
 (**************************************************************************)
 (** * Names of free variables *)
@@ -75,16 +95,6 @@ Fixpoint apps (f : term) (xs : list term) : term :=
   match xs with
   | [] => f
   | x :: xs => apps (app f x) xs
-  end.
-
-(** Compute the size of a term. It is sometimes useful to reason by
-    induction on the size of terms. *)
-Fixpoint term_size (t : term) : nat :=
-  match t with
-  | fvar _ => 0
-  | bvar _ => 0
-  | app t1 t2 => 1 + term_size t1 + term_size t2
-  | lam t => 1 + term_size t
   end.
 
 (** Compute the set of free variables in a term. *)
@@ -154,6 +164,8 @@ Fixpoint open_ (n : nat) (u : term) (t : term) : term :=
 (** [t ^^ u] replaces de Bruijn index [0] with [u] in [t].
     It assumes [u] is locally closed (so no lifting is needed). *)
 Notation "t '^^' u" := (open_ 0 u t) (at level 30, no associativity).
+
+(** [t ^ x] is the same as [t ^^ (fvar x)]. *)
 Notation "t '^' x" := (open_ 0 (fvar x) t) (at level 30, no associativity).
 
 Fixpoint close_ (n : nat) (x : name) (t : term) : term :=

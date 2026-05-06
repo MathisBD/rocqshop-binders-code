@@ -106,9 +106,10 @@ intros f f' Hf xs ? <-. induction xs in f, f', Hf |- * ; cbn.
 Qed.
 
 (**************************************************************************)
-(** *** Stack reduction machine. *)
+(** * Stack reduction machine *)
 (**************************************************************************)
 
+(** Apply a term to a stack of arguments. *)
 Definition zip (t : term * list term) := apps (fst t) (snd t).
 
 (** Strong call-by-name stack reduction machine. *)

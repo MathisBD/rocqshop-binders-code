@@ -1,7 +1,7 @@
 (** This file defines a CPS translation on a lambda calculus with let-bindings. *)
 
 From Equations Require Import Equations.
-From Common Require Import Index.
+From PhantomNames Require Import Index.
 
 (***********************************************************************)
 (** * Term syntax *)

@@ -1,5 +1,0 @@
-
-(rocq.theory
- (name Common)
- (package verified-metaprogramming)
- (theories Stdlib Equations))

@@ -1,0 +1,4 @@
+(rocq.theory
+ (name Translations)
+ (package phantom-names-rocqshop)
+ (theories Stdlib Equations PhantomNames))

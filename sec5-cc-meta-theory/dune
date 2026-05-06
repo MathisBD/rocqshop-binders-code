@@ -1,0 +1,6 @@
+(include_subdirs qualified)
+
+(rocq.theory
+ (name MetaTheory)
+ (package phantom-names-rocqshop)
+ (theories Stdlib Equations Ltac2 PhantomNames))

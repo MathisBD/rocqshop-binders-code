@@ -2,15 +2,18 @@
 
 (using rocq 0.11)
 
-(name verified-metaprogramming)
+(name phantom-names-rocqshop)
 
 (generate_opam_files true)
 
 (package
- (name verified-metaprogramming)
+ (name phantom-names-rocqshop)
  (maintainers "Mathis Bouverot-Dupuis (mathis.bouverot@ens.psl.eu)")
  (authors "Mathis Bouverot-Dupuis")
- (synopsis "Verified meta-programming framework for Rocq")
+ (synopsis
+  "Supplementary material for the Rocqshop presentation on phantom names")
  (depends
-   (rocq-prover (= 9.0.0))
-   rocq-equations))
+  (rocq-core
+   (= 9.1.0))
+  rocq-equations
+  rocq-stdpp))

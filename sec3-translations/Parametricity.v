@@ -2,7 +2,7 @@
     dependently typed calculus. *)
 
 From Equations Require Import Equations.
-From Common Require Import Index.
+From PhantomNames Require Import Index.
 
 (** Right-associative function application. *)
 Notation "f '$' x" := (f x)

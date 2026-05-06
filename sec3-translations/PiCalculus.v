@@ -1,7 +1,7 @@
 (** This file defines a translation from the lambda calculus with explicit
     substitutions to the pi calculus. *)
 
-From Common Require Import Index.
+From PhantomNames Require Import Index.
 
 Notation "f $ x" := (f x) (at level 67, right associativity, only parsing).
 

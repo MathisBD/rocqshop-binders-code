@@ -2,7 +2,7 @@
     - (well-scoped) de Bruijn indices.
     - thinnings, i.e. order-preserving renamings. *)
 
-From Common Require Export Scope.
+From PhantomNames Require Export Typeclasses.
 
 (***********************************************************************)
 (** * De Bruijn indices *)

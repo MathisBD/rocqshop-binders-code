@@ -1,4 +1,4 @@
-(** This file defines a unary parametricity translation on a simple
+(** This file defines a unary parametricity translation for a simple
     dependently typed calculus. *)
 
 From Equations Require Import Equations.

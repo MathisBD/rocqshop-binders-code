@@ -1,5 +1,4 @@
-From Stdlib Require Import Bool Nat List.
-From Stdlib.Classes Require Import Morphisms.
+From Stdlib Require Import List Morphisms.
 Import ListNotations.
 
 (**************************************************************************)

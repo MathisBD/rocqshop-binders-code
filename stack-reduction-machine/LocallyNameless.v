@@ -1,6 +1,14 @@
 From Stdlib Require Import Morphisms.
 From stdpp Require Import gmap.
-From Equations Require Import Equations.
+
+(** [forward H] performs forward reasoning: given a hypothesis [H : A -> B],
+    it firsts asks to prove [A] and then [A |- B]. *)
+Ltac forward H :=
+  match type of H with
+  | ?A -> ?B =>
+    let H' := fresh in
+    assert (H' : A); [| specialize (H H'); clear H' ]
+  end.
 
 (**************************************************************************)
 (** * Names of free variables *)
@@ -447,7 +455,7 @@ intros H. induction H ; cbn.
 - set_solver.
 - set_solver.
 - clear H. intros y Hy. destruct (exist_fresh (fv t ∪ domain ctx ∪ {[ y ]})) as [x Hx].
-  specialize (H0 x). forward H0 by set_solver. forward H0 by set_solver.
+  specialize (H0 x). forward H0 ; [set_solver |]. forward H0 ; [set_solver |].
   rewrite <-fv_open in H0. apply H0 in Hy. cbn in Hy. set_solver.
 Qed.
 
@@ -460,7 +468,7 @@ intros H. induction H ; cbn.
 - now constructor.
 - constructor. cbn.
   destruct (exist_fresh (fv t ∪ domain ctx)) as [x Hx].
-  specialize (H0 x). forward H0 by set_solver. forward H0 by set_solver.
+  specialize (H0 x). forward H0 ; [set_solver |]. forward H0 ; [set_solver |].
   rewrite <-lc_open_var in H0. assumption.
 Qed.
 

@@ -1,6 +1,14 @@
 From Stdlib Require Import Morphisms.
 From stdpp Require Import gmap.
-From Equations Require Import Equations.
+
+(** [forward H] performs forward reasoning: given a hypothesis [H : A -> B],
+    it firsts asks to prove [A] and then [A |- B]. *)
+Ltac forward H :=
+  match type of H with
+  | ?A -> ?B =>
+    let H' := fresh in
+    assert (H' : A); [| specialize (H H'); clear H' ]
+  end.
 
 (**************************************************************************)
 (** * Lambda terms *)
